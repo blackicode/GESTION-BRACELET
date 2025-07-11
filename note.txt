@@ -1,0 +1,6 @@
+nous avons ici trois types utilisateurs (patient , medecin, administrateur);
+Patient: s'inscrit en tant que (malinke, soussou, peulh) et choisi son type de maladies (diabète, grossese, tension)
+Medecin: s'inscrit en tant que specialiste d'une maladie (diabète, grossese, tension) 
+Administrateur : contrôle tout le système
+
+l'inscription manuel des patients par administrateur
