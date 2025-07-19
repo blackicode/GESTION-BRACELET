@@ -1,10 +1,10 @@
 import express from 'express';
 import multer from "multer";
-import { register, login, countUsers, forgotPassword, 
-  validation, Search,validateCode,
-  getMe,
+import { register, login, countUsers, verifyOtp, forgotPassword, 
+  validation, Search,validateCode, getUserById, getAllUsers,
+  getMe, deleteUser
   } from '../controllers/auth.js';
-import { verifyToken } from '../middlewares/protect.js';
+// import { verifyToken } from '../middlewares/protect.js';
 import path from 'path';
 
 
@@ -29,8 +29,16 @@ router.post('/login', login);
 router.get('/count',countUsers);
 router.post('/forgotpassword', forgotPassword);
 router.post('/validatecode', validateCode);
-router.get('/me', verifyToken, getMe); // infos utilisateur connecté
+router.get('/me',  getMe); // infos utilisateur connecté verifyToken
+// Vérification OTP
+router.post("/verify-otp", verifyOtp);
+// Récupérer tous les utilisateurs (admin uniquement)
+router.get("/getusers", getAllUsers);
+// Obtenir un utilisateur par ID
+router.get("/userparid/:id", getUserById);
 
+// Supprimer un utilisateur
+router.delete("/delete/:id", deleteUser);
 
 router.patch('/validation', validation);
 

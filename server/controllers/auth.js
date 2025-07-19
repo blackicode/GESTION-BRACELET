@@ -4,10 +4,14 @@ import bcrypt from "bcrypt";
 import dotenv from 'dotenv';
 import jwt from "jsonwebtoken";
 import sendMail from "../outil/sendMail.js";
+import { sendOtpBySMS } from "../Services/smsService.js";
+import QRCode from 'qrcode';
+
 import crypto from "crypto";
 import nodemailer from "nodemailer";
-import Payment from '../models/Payments/Payments.js';
-import { initiateMobilePayment } from '../services/paymentService.js';
+// import Payment from '../models/Payments/Payments.js';
+// import { initiateMobilePayment } from '../services/paymentService.js';
+
 
 dotenv.config(); // Charger les variables d’environnement
 
@@ -18,87 +22,204 @@ dotenv.config(); // Charger les variables d’environnement
  * @returns None
  * @throws {Error} If there is an error during the registration process.
  */
-export const register = async (req, res) => {
-  const {
-    userType, firstName, lastName, email, password, photo,
-    langueLocale, typeMaladie, specialite, provider
-  } = req.body;
+// export const register = async (req, res) => {
+//   const {
+//     userType, firstName, lastName, email, password, photo,
+//      typeMaladie, specialite, provider
+//   } = req.body;
 
+//   try {
+//     // Vérifier si l'utilisateur existe déjà
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json("Cet email est déjà utilisé.");
+//     }
+
+//     // Hachage du mot de passe
+//     const salt = await bcrypt.genSalt(10);
+//     const hashPassword = await bcrypt.hash(password, salt);
+
+//     // Générer un code de vérification
+//     const code = Math.floor(100000 + Math.random() * 900000);
+
+//     const userData = {
+//       userType, firstName, lastName, email,
+//       password: hashPassword, photo, verifCode: code,
+//     };
+
+//     // Ajout des champs selon le type d'utilisateur
+//     if (userType === "Patient") {
+//       userData.langueLocale = langueLocale;
+//       userData.typeMaladie = typeMaladie;
+//     } else if (userType === "Medecin") {
+//       userData.specialite = specialite;
+//     }
+
+//     const newUser = new User(userData);
+//     const user = await newUser.save();
+//     const savedUser = await User.findById(user._id).select("-password -verifCode");
+//     // Générer un token JWT
+//     const token = jwt.sign(
+//       { id: savedUser._id, email: savedUser.email, userType: savedUser.userType },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1d" }
+//     );
+//     // Ajouter le token au cookie
+//     res.cookie("token", token, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === "production", // Utiliser secure en production
+//       sameSite: "strict", // Sécuriser le cookie contre les attaques CSRF
+//       maxAge: 24 * 60 * 60 * 1000, //  // 1 jour
+//     }); 
+//     // Répondre avec l'utilisateur enregistré et le token
+//     res.status(201).json({
+//       message: "Inscription réussie.",
+//       user: savedUser,
+//       token,
+//     });   
+
+// // Paiement requis pour inscription Patient
+//     if (userType === 'Patient') {
+//       const payment = await initiateMobilePayment({ provider, amount: 10000, user: savedUser });
+//       const newPayment = new Payment({
+//         patientId: savedUser._id,
+//         provider,
+//         amount: 10000,
+//         status: payment.status,
+//         transactionId: payment.transactionId
+//       });
+//       await newPayment.save();
+//     }
+//     try {
+//       await sendMail(user, null, code);
+//     } catch (error) {
+//       console.error("Erreur lors de l'envoi de l'e-mail :", error);
+//       return res.status(500).json("Erreur lors de l'envoi de l'e-mail.");
+//     }
+
+//     res.status(201).json("Inscription réussie. Vérifiez votre e-mail.");
+//   } catch (error) {
+//     console.error("Erreur lors de l'inscription :", error);
+//     res.status(500).json("Erreur serveur.");
+//   }
+// };
+
+
+export const register = async (req, res) => {
   try {
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await User.findOne({ email });
+    const {
+      userType, firstName, lastName, email, phone, password, photo,
+      langueLocale, typeMaladie, braceletId, specialite,
+      provider, otpMethod // 'sms' ou 'email'
+    } = req.body;
+
+    const existingUser = await User.findOne({
+      $or: [{ email }, { phone }, { braceletId }],
+    });
     if (existingUser) {
-      return res.status(400).json("Cet email est déjà utilisé.");
+      return res.status(400).json("Email, téléphone ou bracelet déjà utilisé.");
     }
 
-    // Hachage du mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashPassword = await bcrypt.hash(password, salt);
+    const verifCode = Math.floor(100000 + Math.random() * 900000);
+    const verifCodeExpires = new Date(Date.now() + 60 * 60 * 1000);
 
-    // Générer un code de vérification
-    const code = Math.floor(100000 + Math.random() * 900000);
-
-    const userData = {
-      userType, firstName, lastName, email,
-      password: hashPassword, photo, verifCode: code,
-    };
-
-    // Ajout des champs selon le type d'utilisateur
+    let qrCodeData = "";
     if (userType === "Patient") {
-      userData.langueLocale = langueLocale;
-      userData.typeMaladie = typeMaladie;
-    } else if (userType === "Medecin") {
-      userData.specialite = specialite;
+      const qrText = `${firstName} ${lastName} | ID: ${braceletId} | Date: ${new Date().toISOString()}`;
+      qrCodeData = await QRCode.toDataURL(qrText);
     }
 
-    const newUser = new User(userData);
+    const newUser = new User({
+      userType,
+      firstName,
+      lastName,
+      email,
+      phone,
+      password: hashPassword,
+      photo,
+      langueLocale,
+      typeMaladie,
+      braceletId,
+      qrCodeData,
+      specialite,
+      verifCode,
+      verifCodeExpires,
+    });
+
     const user = await newUser.save();
-    const savedUser = await User.findById(user._id).select("-password -verifCode");
-    // Générer un token JWT
     const token = jwt.sign(
-      { id: savedUser._id, email: savedUser.email, userType: savedUser.userType },
+      { id: user._id, email: user.email, userType: user.userType },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
-    // Ajouter le token au cookie
+
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", // Utiliser secure en production
-      sameSite: "strict", // Sécuriser le cookie contre les attaques CSRF
-      maxAge: 24 * 60 * 60 * 1000, //  // 1 jour
-    }); 
-    // Répondre avec l'utilisateur enregistré et le token
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    // Envoi OTP
+    if (otpMethod === "sms") {
+      await sendOtpBySMS(user.phone, verifCode);
+    } else {
+      await sendMail(user, null, verifCode);
+    }
+
+    // // Paiement si patient
+    // if (userType === "Patient") {
+    //   const payment = await initiateMobilePayment({ provider, amount: 10000, user });
+    //   await new Payment({
+    //     patientId: user._id,
+    //     provider,
+    //     amount: 10000,
+    //     status: payment.status,
+    //     transactionId: payment.transactionId
+    //   }).save();
+    // }
+
     res.status(201).json({
-      message: "Inscription réussie.",
-      user: savedUser,
-      token,
-    });   
-
-// Paiement requis pour inscription Patient
-    if (userType === 'Patient') {
-      const payment = await initiateMobilePayment({ provider, amount: 10000, user: savedUser });
-      const newPayment = new Payment({
-        patientId: savedUser._id,
-        provider,
-        amount: 10000,
-        status: payment.status,
-        transactionId: payment.transactionId
-      });
-      await newPayment.save();
-    }
-    try {
-      await sendMail(user, null, code);
-    } catch (error) {
-      console.error("Erreur lors de l'envoi de l'e-mail :", error);
-      return res.status(500).json("Erreur lors de l'envoi de l'e-mail.");
-    }
-
-    res.status(201).json("Inscription réussie. Vérifiez votre e-mail.");
+      message: "Inscription réussie. Vérifiez votre email ou SMS.",
+      user: {
+        id: user._id,
+        fullName: `${user.firstName} ${user.lastName}`,
+        userType: user.userType,
+        email: user.email,
+        isVerified: user.isVerified
+      },
+      token
+    });
   } catch (error) {
-    console.error("Erreur lors de l'inscription :", error);
+    console.error("Erreur inscription :", error);
     res.status(500).json("Erreur serveur.");
   }
 };
+
+export const verifyOtp = async (req, res) => {
+  const { email, code } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json("Utilisateur introuvable.");
+  if (user.isVerified) return res.status(400).json("Déjà vérifié.");
+
+  if (
+    user.verifCode !== Number(code) ||
+    new Date() > new Date(user.verifCodeExpires)
+  ) {
+    return res.status(400).json("Code invalide ou expiré.");
+  }
+
+  user.isVerified = true;
+  user.verifCode = null;
+  user.verifCodeExpires = null;
+  await user.save();
+
+  res.status(200).json({ message: "Vérification réussie." });
+};
+
 
 /**
  * Handles the login functionality by checking the provided email and password against
@@ -172,6 +293,24 @@ export const login = async (req, res) => {
     return res.status(500).json({ message: "Erreur lors de la connexion.", error });
   }
 };
+
+
+export const getAllUsers = async (req, res) => {
+  const users = await User.find().select("-password -verifCode");
+  res.status(200).json(users);
+};
+
+export const getUserById = async (req, res) => {
+  const user = await User.findById(req.params.id).select("-password -verifCode");
+  if (!user) return res.status(404).json("Utilisateur non trouvé.");
+  res.status(200).json(user);
+};
+
+export const deleteUser = async (req, res) => {
+  await User.findByIdAndDelete(req.params.id);
+  res.status(200).json("Utilisateur supprimé.");
+};
+
 
 
 

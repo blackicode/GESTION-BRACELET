@@ -14,7 +14,7 @@ import medecinRoutes from './routes/Medecin/Medecin.js';
 import vitalsRoutes from './routes/Vitals/Vitals.js';
 import alertsRoutes from './routes/Alertes/Alertes.js';
 import paymentsRoutes from './routes/Payments/Payment.js';
-import { verifyToken } from './middlewares/protect.js';
+// import { verifyToken } from './middlewares/protect.js';
 // Importing environment variables
 import messageRoutes from './routes/Messagerie/Messages.js'; // Assuming this is the correct path to the message controller
 
@@ -24,22 +24,22 @@ const app = express();
 const server = http.createServer(app);
 app.use(helmet());
 app.use(morgan('dev'));
-// ✅ Middleware pour vérifier le token d'authentification
-app.use((req, res, next) => {
-  const token = req.headers.authorization;
-  if (token) {
-    const splitToken = token.split(" ")[1];
-    try {
-      const decoded = verifyToken(splitToken, process.env.JWT_SECRET);
-      req.user = decoded; // Ajouter les informations de l'utilisateur à la requête
-      next();
-    } catch (error) {
-      return res.status(401).json({ message: "Token expiré ou invalide." });
-    }
-  } else {
-    return res.status(401).json({ message: "Token manquant." });
-  }
-});
+// // ✅ Middleware pour vérifier le token d'authentification
+// app.use((req, res, next) => {
+//   const token = req.headers.authorization;
+//   if (token) {
+//     const splitToken = token.split(" ")[1];
+//     try {
+//       const decoded = verifyToken(splitToken, process.env.JWT_SECRET);
+//       req.user = decoded; // Ajouter les informations de l'utilisateur à la requête
+//       next();
+//     } catch (error) {
+//       return res.status(401).json({ message: "Token expiré ou invalide." });
+//     }
+//   } else {
+//     return res.status(401).json({ message: "Token manquant." });
+//   }
+// });
 // ✅ Connexion à MongoDB
 mongoose
   .connect(process.env.MONGO_URI, {
@@ -78,7 +78,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // ✅ Configuration unique de CORS
 const corsOptions = {
-  origin: "http://localhost:5173",
+  // origin: "http://localhost:5173",
+  origin: "*", // TEMPORAIRE POUR DEV, à sécuriser en prod !
+  credentials: true,
   methods: ["GET", "POST", "HEAD", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
