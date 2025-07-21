@@ -601,6 +601,7 @@ export const verifyOtp = async (req, res) => {
 };
 
 
+
 /**
  * Handles the login functionality by checking the provided email and password against
  * the user database. If the credentials are valid and the user is verified, a JWT token
@@ -620,6 +621,7 @@ export const login = async (req, res) => {
         message: "Aucun compte trouvé avec cet email. Veuillez vous inscrire.",
       });
     }
+    
 
     // Vérifier si le compte est actuellement bloqué
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -671,12 +673,12 @@ export const login = async (req, res) => {
     user.failedAttempts = 0;
     user.lockUntil = null;
     await user.save();
-
+    
     return res.status(200).json({
       message: "Connexion réussie.",
+      id: user._id, // ✅ requis pour le frontend
       email: user.email,
       userType: user.userType,
-      // ajouter token ou autre info utile ici
     });
   } catch (error) {
     console.error("Erreur serveur :", error);
@@ -685,16 +687,41 @@ export const login = async (req, res) => {
 };
 
 
-export const getAllUsers = async (req, res) => {
-  const users = await User.find().select("-password -verifCode");
-  res.status(200).json(users);
-};
 
-export const getUserById = async (req, res) => {
-  const user = await User.findById(req.params.id).select("-password -verifCode");
-  if (!user) return res.status(404).json("Utilisateur non trouvé.");
-  res.status(200).json(user);
-};
+
+
+
+
+// export const getAllUsers = async (req, res) => {
+//   const users = await User.find().select("-password -verifCode");
+//   res.status(200).json(users);
+// };
+
+// Récupération des infos complètes d’un utilisateur par ID
+// export const getUserById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     // Vérifie si l'ID est valide
+//     if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+//       return res.status(400).json({ message: "ID utilisateur invalide." });
+//     }
+
+//     const user = await User.findById(id).select("-password -verifCode -resetPasswordToken -resetPasswordExpires");
+
+//     if (!user) {
+//       return res.status(404).json({ message: "Utilisateur non trouvé." });
+//     }
+
+//     res.status(200).json(user);
+//   } catch (error) {
+//     console.error("Erreur lors de la récupération de l'utilisateur :", error);
+//     res.status(500).json({ message: "Erreur serveur lors de la récupération de l'utilisateur." });
+//   }
+// };
+
+
+
 
 export const deleteUser = async (req, res) => {
   await User.findByIdAndDelete(req.params.id);

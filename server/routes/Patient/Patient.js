@@ -1,5 +1,6 @@
 import express from 'express';
 import { getAllPatients, getPatientById, deletePatient } from '../../controllers/Patient/Patient.js';
+
 import { verifyToken, isAdmin } from '../../middlewares/protect.js';
 
 const router = express.Router();

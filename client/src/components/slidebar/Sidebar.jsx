@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import MenuItem from "./menu_item";
-import { Home, Settings, Upload, Airplay } from "lucide-react";
+import { Home, Settings, Upload, Airplay, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function Sidebar({ role, level, user, onPhotoChange }) {
   const [currentto, setCurrentto] = useState(
@@ -12,20 +12,12 @@ export default function Sidebar({ role, level, user, onPhotoChange }) {
   const fileInputRef = useRef(null);
 
   const commonItems = [
-    { title: "Accueil", to: "", icon: <Home className="w-6 h-6" /> },
+    { title: "Accueil", to: "medecindashboard", icon: <Home className="w-6 h-6" /> },
     { title: "Paramètres", to: "settings", icon: <Settings className="w-6 h-6" /> },
   ];
 
   const items = [...commonItems, ...([role]?.[level] || [])];
 
-  // Fonction pour jouer le son
-  const playSound = () => {
-    if (audioRef.current) {
-      audioRef.current.play();
-    }
-  };
-
-  // Fonction pour gérer le changement de photo
   const handlePhotoChange = (event) => {
     const file = event.target.files[0];
     if (file && onPhotoChange) {
@@ -39,30 +31,45 @@ export default function Sidebar({ role, level, user, onPhotoChange }) {
 
   return (
     <div
-      className={`fixed h-screen overflow-y-auto bg-blue-600 text-white transition-all duration-200 ease-in-out ${
-        isCollapsed ? "w-20" : "w-56"
+      className={`fixed h-screen overflow-y-auto bg-blue-600 text-white transition-all duration-300 ease-in-out ${
+        isCollapsed ? "w-20" : "w-64"
       }`}
     >
-      {/* Section Profil */}
-      <div className={`mt-16 flex flex-col items-center ${isCollapsed ? "w-20" : "w-56"}`}>
+       {/* Bouton réduction/agrandissement */}
+       <div className="flex justify-center mt-14">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="bg-white text-blue-600 rounded-full p-2 shadow-md hover:bg-blue-200 transition-all"
+          title={isCollapsed ? "Ouvrir le menu" : "Réduire le menu"}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-5 h-5" />
+          ) : (
+            <ChevronLeft className="w-5 h-5" />
+          )}
+        </button>
+      </div>
+
+      
+
+       {/* Profil utilisateur */}
+       <div className="flex flex-col items-center mt-10 transition-all duration-300">
         <img
           src={user?.photo || ""}
           alt="Profil"
-          className={`rounded-full object-cover transition-all ${
+          className={`rounded-full object-cover transition-all duration-300 ${
             isCollapsed ? "w-10 h-10" : "w-16 h-16"
           }`}
         />
-        {!isCollapsed && (
-          <p className="mt-2 text-sm font-semibold">
-            {user?.userType || "Type Inconnu"}
-          </p>
-        )}
 
-        {/* Bouton pour changer la photo de profil */}
         {!isCollapsed && (
-          <>
+          <div className="text-center mt-2 space-y-1 px-2">
+            <p className="text-sm font-semibold">{user?.userType || "Type Inconnu"}</p>
+            <p className="text-xs truncate">{user?.firstName} {user?.lastName}</p>
+            <p className="text-xs truncate">{user?.email}</p>
+
             <button
-              className="mt-2 bg-white text-blue-600 px-2 py-1 text-xs rounded flex items-center gap-1"
+              className="mt-1 bg-white text-blue-600 px-2 py-1 text-xs rounded flex items-center gap-1 mx-auto"
               onClick={() => fileInputRef.current.click()}
             >
               <Upload className="w-4 h-4" /> Changer Photo
@@ -74,40 +81,29 @@ export default function Sidebar({ role, level, user, onPhotoChange }) {
               onChange={handlePhotoChange}
               className="hidden"
             />
-          </>
+          </div>
         )}
       </div>
-
-      {/* Bouton pour réduire/étendre la sidebar */}
-      <div
-        className="flex justify-center mt-4 cursor-pointer"
-        onClick={() => setIsCollapsed(!isCollapsed)}
-      >
-        {isCollapsed ? (
-          <Airplay className="w-6 h-6" />
-        ) : (
-          <Airplay className="w-6 h-6 rotate-180" />
-        )}
-      </div>
-
-      {/* Menu */}
-      <div className="px-2 mt-4">
+      {/* Menu navigation */}
+      <div className="px-2 mt-6 space-y-1">
         {items.map((item) => (
-          <MenuItem
+          <Link
             key={item.title}
-            currentto={currentto}
-            setCurrentto={setCurrentto}
-            title={item.title}
-            to={item.to}
-            onClick={playSound}
+            to={`/dashboard/${item.to}`}
+            className={`flex items-center gap-3 py-2 px-3 rounded hover:bg-blue-700 transition-all ${
+              currentto === item.to ? "bg-blue-800" : ""
+            }`}
+            onClick={() => setCurrentto(item.to)}
           >
-            {item.icon}
-          </MenuItem>
+            <span>{item.icon}</span>
+            {!isCollapsed && (
+              <span className="text-sm font-medium truncate">
+                {item.title}
+              </span>
+            )}
+          </Link>
         ))}
       </div>
-
-      {/* Audio de clic */}
-      <audio ref={audioRef} src="/click-sound.mp3" />
     </div>
   );
 }

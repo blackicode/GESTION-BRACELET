@@ -2,7 +2,7 @@ import express from 'express';
 import multer from "multer";
 import { register, login, countUsers, forgotPassword, 
   validation, Search,validateCode,
-  getMe,
+  getMe,  
   } from '../controllers/auth.js';
 import { verifyToken } from '../middlewares/protect.js';
 import path from 'path';

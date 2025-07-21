@@ -19,6 +19,9 @@ import DocumentationPage from "./components/slidebar/Documentations";
 import { LogOut } from "lucide-react";
 import App from "./components/Alertes/App";
 
+import AdminDashboard from "./components/slidebar/PageAccueil/AdminDashboard";
+import MedecinDashboard from "./components/slidebar/PageAccueil/MedecinDashboard";
+
 
 export const router = createBrowserRouter([
   {
@@ -56,6 +59,14 @@ export const router = createBrowserRouter([
       {
         path: "",
         element: <DashboardComponent />,
+      },
+      {
+        path: "admindashboard",
+        element: <AdminDashboard />,
+      },
+      {
+        path: "medecindashboard/:id",
+        element: <MedecinDashboard />,
       },
       {
         path: "Profile",

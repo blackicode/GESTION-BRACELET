@@ -1,9 +1,19 @@
 import React from "react";
 
 const AdminDashboard = ({ user }) => {
+  if (!user) {
+    return (
+      <div className="p-6 text-red-600 font-semibold">
+        Erreur : Les informations de l'utilisateur ne sont pas disponibles.
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-bold mb-4">Bienvenue Administrateur {user.firstName} {user.lastName}</h1>
+      <h1 className="text-3xl font-bold mb-4">
+        Bienvenue Administrateur {user.firstName} {user.lastName}
+      </h1>
       <div className="flex items-center space-x-4">
         <img
           src={user.profilePicture || "/default-profile.png"}
