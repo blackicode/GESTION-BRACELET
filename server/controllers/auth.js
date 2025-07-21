@@ -1,3 +1,383 @@
+// import axios from "axios";
+// import User from "../models/User.js";
+// import bcrypt from "bcrypt";
+// import dotenv from 'dotenv';
+// import jwt from "jsonwebtoken";
+// import sendMail from "../outil/sendMail.js";
+// import crypto from "crypto";
+// import nodemailer from "nodemailer";
+// import Payment from '../models/Payments/Payments.js';
+// import { initiateMobilePayment } from '../services/paymentService.js';
+
+// dotenv.config(); // Charger les variables d’environnement
+
+// /**
+//  * Registers a new user with the provided information.
+//  * @param {Object} req - The request object containing the user data.
+//  * @param {Object} res - The response object to send the result of the registration process.
+//  * @returns None
+//  * @throws {Error} If there is an error during the registration process.
+//  */
+// export const register = async (req, res) => {
+//   const {
+//     userType, firstName, lastName, email, password, photo,
+//     langueLocale, typeMaladie, specialite, provider
+//   } = req.body;
+
+//   try {
+//     // Vérifier si l'utilisateur existe déjà
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//       return res.status(400).json("Cet email est déjà utilisé.");
+//     }
+
+//     // Hachage du mot de passe
+//     const salt = await bcrypt.genSalt(10);
+//     const hashPassword = await bcrypt.hash(password, salt);
+
+//     // Générer un code de vérification
+//     const code = Math.floor(100000 + Math.random() * 900000);
+
+//     const userData = {
+//       userType, firstName, lastName, email,
+//       password: hashPassword, photo, verifCode: code,
+//     };
+
+//     // Ajout des champs selon le type d'utilisateur
+//     if (userType === "Patient") {
+//       userData.langueLocale = langueLocale;
+//       userData.typeMaladie = typeMaladie;
+//     } else if (userType === "Medecin") {
+//       userData.specialite = specialite;
+//     }
+
+//     const newUser = new User(userData);
+//     const user = await newUser.save();
+//     const savedUser = await User.findById(user._id).select("-password -verifCode");
+//     // Générer un token JWT
+//     const token = jwt.sign(
+//       { id: savedUser._id, email: savedUser.email, userType: savedUser.userType },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1d" }
+//     );
+//     // Ajouter le token au cookie
+//     res.cookie("token", token, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === "production", // Utiliser secure en production
+//       sameSite: "strict", // Sécuriser le cookie contre les attaques CSRF
+//       maxAge: 24 * 60 * 60 * 1000, //  // 1 jour
+//     }); 
+//     // Répondre avec l'utilisateur enregistré et le token
+//     res.status(201).json({
+//       message: "Inscription réussie.",
+//       user: savedUser,
+//       token,
+//     });   
+
+// // Paiement requis pour inscription Patient
+//     if (userType === 'Patient') {
+//       const payment = await initiateMobilePayment({ provider, amount: 10000, user: savedUser });
+//       const newPayment = new Payment({
+//         patientId: savedUser._id,
+//         provider,
+//         amount: 10000,
+//         status: payment.status,
+//         transactionId: payment.transactionId
+//       });
+//       await newPayment.save();
+//     }
+//     try {
+//       await sendMail(user, null, code);
+//     } catch (error) {
+//       console.error("Erreur lors de l'envoi de l'e-mail :", error);
+//       return res.status(500).json("Erreur lors de l'envoi de l'e-mail.");
+//     }
+
+//     res.status(201).json("Inscription réussie. Vérifiez votre e-mail.");
+//   } catch (error) {
+//     console.error("Erreur lors de l'inscription :", error);
+//     res.status(500).json("Erreur serveur.");
+//   }
+// };
+
+// /**
+//  * Handles the login functionality by checking the provided email and password against
+//  * the user database. If the credentials are valid and the user is verified, a JWT token
+//  * is generated and returned along with the user information.
+//  * @param {Object} req - The request object containing the email and password.
+//  * @param {Object} res - The response object to send the result.
+//  * @returns None
+//  */
+
+// export const login = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     const user = await User.findOne({ email });
+
+//     // Vérifier si l'utilisateur existe
+//     if (!user) {
+//       return res.status(400).json({ message: "Email ou mot de passe incorrect. Veuillez réessayer." });
+//     }
+
+//     // Vérifier si le compte est bloqué
+//     if (user.lockUntil && user.lockUntil > Date.now()) {
+//       const lockTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
+//       return res.status(400).json({
+//         message: `Votre compte est temporairement bloqué. Veuillez réessayer dans ${lockTime} secondes.`,
+//         lockTime,
+//       });
+//     }
+
+//     // Vérifier le mot de passe
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) {
+//       user.failedAttempts += 1;
+
+//       // Déterminer la durée de blocage selon le nombre d'échecs
+//       if (user.failedAttempts === 1) {
+//         user.lockUntil = Date.now() + 15000; // 15 sec
+//         return res.status(400).json({
+//           message: "Mot de passe incorrect. Veuillez patienter pendant 15 secondes.",
+//           lockTime: 15,
+//         });
+//       }
+//       if (user.failedAttempts === 2) {
+//         user.lockUntil = Date.now() + 30000; // 30 sec
+//         return res.status(400).json({
+//           message: "Mot de passe incorrect. Veuillez patienter pendant 30 secondes.",
+//           lockTime: 30,
+//         });
+//       }
+//       if (user.failedAttempts >= 3) {
+//         user.lockUntil = Date.now() + 24 * 60 * 60 * 1000; // 24h
+//         return res.status(400).json({
+//           message: "Désolé, cher utilisateur. Votre mot de passe incorrect n'est pas valide. Votre compte est bloqué pendant 24 heures. Veuillez contacter l'administrateur.",
+//           lockTime: 86400,
+//         });
+//       }
+
+//       await user.save();
+//       const lockTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
+//       return res.status(400).json({ lockTime });
+//     }
+
+//     // Réinitialiser les tentatives échouées
+//     user.failedAttempts = 0;
+//     user.lockUntil = null;
+//     await user.save();
+
+//     // Connexion réussie
+//     return res.status(200).json({ message: "Connexion réussie." });
+//   } catch (error) {
+//     return res.status(500).json({ message: "Erreur lors de la connexion.", error });
+//   }
+// };
+
+
+
+// export const forgotPassword = async (req, res) => {
+//   try {
+//       const { email } = req.body;
+
+//       // Vérifier si l'utilisateur existe
+//       const user = await User.findOne({ email });
+
+//       if (!user) {
+//           return res.status(404).json({ message: "Utilisateur introuvable avec cet email" });
+//       }
+
+//       // Générer un token et un code de vérification
+//       const resetToken = crypto.randomBytes(32).toString('hex');
+//       const resetTokenExpires = Date.now() + 15 * 60 * 1000; // Expiration en 15 min
+//       const verifCode = Math.floor(100000 + Math.random() * 900000).toString(); // Code 6 chiffres
+//       const verifCodeExpires = Date.now() + 15 * 60 * 1000; // Expiration du code
+
+//       // Stocker dans la base de données
+//       user.resetPasswordToken = resetToken;
+//       user.resetPasswordExpires = resetTokenExpires;
+//       user.verifCode = verifCode;
+//       user.verifCodeExpires = verifCodeExpires;
+
+//       await user.save();
+
+//       // Configurer l’envoi d’email
+//       const transporter = nodemailer.createTransport({
+//           host: process.env.HOST,
+//           port: Number(process.env.EMAIL_PORT),
+//           secure: process.env.SECURE === "true",
+//           auth: {
+//               user: process.env.EMAIL_USER,
+//               pass: process.env.EMAIL_PASS,
+//           },
+//       });
+
+//       // Construire le message
+//       const resetURL = `${process.env.FRONTEND_URL}/forgotpassword/${resetToken}`;
+//       const message = {
+//           from: process.env.EMAIL_USER,
+//           to: user.email,
+//           subject: 'Réinitialisation du mot de passe',
+//           html: `
+//               <h3>Réinitialisation du mot de passe</h3>
+//               <p>Cliquez sur le lien suivant pour réinitialiser votre mot de passe :</p>
+//               <a href="${resetURL}">Réinitialiser le mot de passe</a>
+//               <p>Ou utilisez ce code de vérification : <strong>${verifCode}</strong></p>
+//               <p>Ce code est valable pendant 15 minutes.</p>
+//           `,
+//       };
+
+//       await transporter.sendMail(message);
+
+//       res.status(200).json({ message: 'Email de réinitialisation envoyé avec succès' });
+
+//   } catch (error) {
+//       console.error('Erreur lors de la réinitialisation du mot de passe : ', error);
+//       res.status(500).json({ message: "Échec de la réinitialisation du mot de passe" });
+//   }
+// };
+
+
+
+// // code de validation de renitilisation
+// export const validateCode = async (req, res) => {
+//   try {
+//       const { email, verifCode } = req.body;
+
+//       // Vérifier si l'utilisateur existe
+//       const user = await User.findOne({ email });
+
+//       if (!user) {
+//           return res.status(404).json({ message: "Utilisateur introuvable" });
+//       }
+
+//       // Vérifier si le code existe et n'a pas expiré
+//       if (!user.verifCode || user.verifCodeExpires < Date.now()) {
+//           return res.status(400).json({ message: "Code expiré ou non valide. Demandez un nouveau code." });
+//       }
+
+//       // Comparer les codes
+//       if (user.verifCode !== verifCode) {
+//           return res.status(400).json({ message: "Code de vérification incorrect" });
+//       }
+
+//       // Supprimer le code après validation
+//       user.verifCode = null;
+//       user.verifCodeExpires = null;
+//       await user.save();
+
+//       res.status(200).json({ success: true, message: "Code validé avec succès" });
+
+//   } catch (error) {
+//       console.error('Erreur lors de la validation du code : ', error);
+//       res.status(500).json({ message: "Erreur lors de la validation du code" });
+//   }
+// };
+
+
+
+
+// //Code de vérification par e-mail
+// /**
+//  * Validates the email and verification code provided in the request body.
+//  * If the email and code match a user in the database, the user's "verified" field
+//  * is set to true and the response status is set to 200 with a success message.
+//  * If the email and code do not match a user in the database, the response status
+//  * is set to 400 with an error message.
+//  * If an error occurs during the validation process, the response status is set to
+//  * 500 with an error message.
+//  * @param {Object} req - The request object containing the email and code.
+//  * @param {Object} res - The response object to send the result.
+//  * @returns None
+//  */
+// export const validation = async (req, res) => {
+//   const { verifCode } = req.body;
+//   try {
+//     const user = await User.findOne({ verifCode });
+//     if (!user) return res.status(400).json({ message: "Code invalide." });
+
+//     await User.findByIdAndUpdate(user._id, { verified: true });
+//     res.status(200).json("Email vérifié avec succès.");
+//   } catch (error) {
+//     res.status(500).json("Erreur lors de la validation.");
+//   }
+// };
+
+// export const countUsers = async (req, res) => {
+//   try {
+//     // Vérifier si `User` est bien défini avant d'utiliser `countDocuments`
+//     if (!User) {
+//       return res.status(500).json({ message: "Le modèle User est introuvable." });
+//     }
+
+//     // Compter le nombre total d'utilisateurs dans la base de données
+//     const totalUsers = await User.countDocuments();
+
+//     // Répondre avec le nombre total d'utilisateurs
+//     res.status(200).json({ totalUsers });
+//   } catch (error) {
+//     // Gestion des erreurs
+//     res.status(500).json({
+//       message: "Une erreur s'est produite lors du comptage des utilisateurs.",
+//       error: error.message,
+//     });
+//   }
+// };
+
+
+// /** * Search function to find users by first name or last name.
+//  * It uses a case-insensitive regex search on the User model.
+//  * @param {Object} req - The request object containing the search query.
+//  * @param {Object} res - The response object to send the result.
+//  * @returns None
+//  */
+// // Cette fonction permet de rechercher des utilisateurs par nom ou prénom
+// // Elle utilise une recherche regex insensible à la casse sur le modèle User
+// // Elle prend en paramètre la requête et la réponse, et renvoie les utilisateurs correspond
+// // Si la requête est vide, elle renvoie une erreur 400
+// // Si une erreur se produit, elle renvoie une erreur 500 avec un message d'error
+// // Exemple d'utilisation :
+
+
+
+
+
+// //pour rechercher les utilisateurs par nom ou prénom
+
+// export const Search = async (req, res) => {
+//   try {
+//     const { query } = req.query;
+//     if (!query) {
+//       return res.status(400).json({ message: "Requête vide" });
+//     }
+
+//     const users = await User.find({
+//       $or: [
+//         { firstName: { $regex: query, $options: "i" } },
+//         { lastName: { $regex: query, $options: "i" } },
+//       ],
+//     });
+
+//     res.json(users);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Erreur serveur" });
+//   }
+// };
+
+
+// // GET /api/auth/me
+// export const getMe = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user.id).select('-password');
+//     res.json(user);
+//   } catch (err) {
+//     res.status(500).json("Erreur interne");
+//   }
+// };
+
+
+
+
 import axios from "axios";
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
@@ -235,12 +615,13 @@ export const login = async (req, res) => {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
 
-    // Vérifier si l'utilisateur existe
     if (!user) {
-      return res.status(400).json({ message: "Email ou mot de passe incorrect. Veuillez réessayer." });
+      return res.status(401).json({
+        message: "Aucun compte trouvé avec cet email. Veuillez vous inscrire.",
+      });
     }
 
-    // Vérifier si le compte est bloqué
+    // Vérifier si le compte est actuellement bloqué
     if (user.lockUntil && user.lockUntil > Date.now()) {
       const lockTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
       return res.status(400).json({
@@ -249,48 +630,57 @@ export const login = async (req, res) => {
       });
     }
 
-    // Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       user.failedAttempts += 1;
 
-      // Déterminer la durée de blocage selon le nombre d'échecs
+      // Appliquer blocage progressif
       if (user.failedAttempts === 1) {
-        user.lockUntil = Date.now() + 15000; // 15 sec
+        user.lockUntil = Date.now() + 15 * 1000;
+        await user.save();
         return res.status(400).json({
           message: "Mot de passe incorrect. Veuillez patienter pendant 15 secondes.",
           lockTime: 15,
         });
       }
+
       if (user.failedAttempts === 2) {
-        user.lockUntil = Date.now() + 30000; // 30 sec
+        user.lockUntil = Date.now() + 30 * 1000;
+        await user.save();
         return res.status(400).json({
           message: "Mot de passe incorrect. Veuillez patienter pendant 30 secondes.",
           lockTime: 30,
         });
       }
+
       if (user.failedAttempts >= 3) {
-        user.lockUntil = Date.now() + 24 * 60 * 60 * 1000; // 24h
+        user.lockUntil = Date.now() + 24 * 60 * 60 * 1000; // 24 heures
+        await user.save();
         return res.status(400).json({
-          message: "Désolé, cher utilisateur. Votre mot de passe incorrect n'est pas valide. Votre compte est bloqué pendant 24 heures. Veuillez contacter l'administrateur.",
+          message: "Désolé, cher utilisateur. Votre mot de passe est incorrect. Votre compte est temporairement bloqué pendant 24 heures. Veuillez contacter l'administrateur.",
           lockTime: 86400,
         });
       }
 
-      await user.save();
-      const lockTime = Math.ceil((user.lockUntil - Date.now()) / 1000);
-      return res.status(400).json({ lockTime });
+      await user.save(); // sécurité en fallback
+      return res.status(400).json({ message: "Mot de passe incorrect." });
     }
 
-    // Réinitialiser les tentatives échouées
+    // ✅ Connexion réussie
     user.failedAttempts = 0;
     user.lockUntil = null;
     await user.save();
 
-    // Connexion réussie
-    return res.status(200).json({ message: "Connexion réussie." });
+    return res.status(200).json({
+      message: "Connexion réussie.",
+      email: user.email,
+      userType: user.userType,
+      // ajouter token ou autre info utile ici
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Erreur lors de la connexion.", error });
+    console.error("Erreur serveur :", error);
+    return res.status(500).json({ message: "Erreur lors de la connexion." });
   }
 };
 
@@ -513,4 +903,5 @@ export const getMe = async (req, res) => {
     res.status(500).json("Erreur interne");
   }
 };
+
 

@@ -14,9 +14,12 @@ import medecinRoutes from './routes/Medecin/Medecin.js';
 import vitalsRoutes from './routes/Vitals/Vitals.js';
 import alertsRoutes from './routes/Alertes/Alertes.js';
 import paymentsRoutes from './routes/Payments/Payment.js';
-// import { verifyToken } from './middlewares/protect.js';
-// Importing environment variables
-import messageRoutes from './routes/Messagerie/Messages.js'; // Assuming this is the correct path to the message controller
+import { verifyToken } from './middlewares/protect.js';
+import notificationRoutes from './routes/Alertes/Notification.js';
+// server.js ou app.js
+import './jobs/NotificationCron.js'; // juste pour que les cron jobs se déclenchent
+
+
 
 dotenv.config();
 
@@ -24,6 +27,14 @@ const app = express();
 const server = http.createServer(app);
 app.use(helmet());
 app.use(morgan('dev'));
+
+// ✅ Configuration unique de CORS
+const corsOptions = {
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST", "HEAD", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+app.use(cors(corsOptions));
 // // ✅ Middleware pour vérifier le token d'authentification
 // app.use((req, res, next) => {
 //   const token = req.headers.authorization;
@@ -76,15 +87,6 @@ io.on("connection", (socket) => {
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-// ✅ Configuration unique de CORS
-const corsOptions = {
-  // origin: "http://localhost:5173",
-  origin: "*", // TEMPORAIRE POUR DEV, à sécuriser en prod !
-  credentials: true,
-  methods: ["GET", "POST", "HEAD", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-};
-app.use(cors(corsOptions));
 
 // ✅ Gestion des erreurs MongoDB
 mongoose.connection.on("error", (err) => {
@@ -95,9 +97,9 @@ app.use("/auth", authRoutes);
 app.use("/patient", patientRoutes);
 app.use("/medecin", medecinRoutes);
 app.use("/vitals", vitalsRoutes);
-app.use("/alerts", alertsRoutes);
+app.use("/", alertsRoutes);
 app.use("/payments", paymentsRoutes);
-app.use("/", messageRoutes); // Routes pour la messagerie
+app.use('/notifications', notificationRoutes);
 
 // ✅ Middleware pour gestion des erreurs globales
 app.use((err, req, res, next) => {

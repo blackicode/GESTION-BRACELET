@@ -46,7 +46,7 @@ export default function Sidebar({ role, level, user, onPhotoChange }) {
       {/* Section Profil */}
       <div className={`mt-16 flex flex-col items-center ${isCollapsed ? "w-20" : "w-56"}`}>
         <img
-          src={user?.photo || "./src/assets/images/profil.png"}
+          src={user?.photo || ""}
           alt="Profil"
           className={`rounded-full object-cover transition-all ${
             isCollapsed ? "w-10 h-10" : "w-16 h-16"

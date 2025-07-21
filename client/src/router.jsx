@@ -17,6 +17,7 @@ import DashboardComponent from "./features/auth/dashboard";
 import Nombresconecter from "./features/auth/Nombresconecter";
 import DocumentationPage from "./components/slidebar/Documentations";
 import { LogOut } from "lucide-react";
+import App from "./components/Alertes/App";
 
 
 export const router = createBrowserRouter([
@@ -59,6 +60,10 @@ export const router = createBrowserRouter([
       {
         path: "Profile",
         element: <Profile />,
+      },
+      {
+        path: "alertes",
+        element: <App />,
       },
       
       {
