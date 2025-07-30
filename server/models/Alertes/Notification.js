@@ -70,6 +70,6 @@ const notificationSchema = new mongoose.Schema({
 });
 
 // Création du modèle à partir du schéma
-const Notification = mongoose.model('Notification', notificationSchema);
+const Notification = mongoose.model('NotificationAlerte', notificationSchema);
 
 export default Notification;

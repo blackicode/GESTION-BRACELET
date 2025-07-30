@@ -6,19 +6,22 @@ import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import morgan from 'morgan';
 import helmet from 'helmet';
-
-
 import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/users.js";
+
 import patientRoutes from './routes/Patient/Patient.js';
 import medecinRoutes from './routes/Medecin/Medecin.js';
 import vitalsRoutes from './routes/Vitals/Vitals.js';
+import messagesRoutes from './routes/Messagerie/Messages.js';
+
 import alertsRoutes from './routes/Alertes/Alertes.js';
 import paymentsRoutes from './routes/Payments/Payment.js';
-import { verifyToken } from './middlewares/protect.js';
-import notificationRoutes from './routes/Alertes/Notification.js';
+// import { verifyToken } from './middlewares/protect.js';
+// import notificationRoutes from './routes/Alertes/Notification.js';
 // server.js ou app.js
 import './jobs/NotificationCron.js'; // juste pour que les cron jobs se déclenchent
-
+import notificationRoutes from './routes/Notifications/Notification.js';
+import { checkExpiredNotifications } from './controllers/Notifications/notification.js';
 
 
 dotenv.config();
@@ -31,15 +34,15 @@ app.use(morgan('dev'));
 // ✅ Configuration unique de CORS
 const corsOptions = {
   origin: "http://localhost:5173",
-  methods: ["GET", "POST", "HEAD", "PATCH", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "HEAD", "PATCH", "PUT","DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 app.use(cors(corsOptions));
-// // ✅ Middleware pour vérifier le token d'authentification
+// ✅ Middleware pour vérifier le token d'authentification
 // app.use((req, res, next) => {
 //   const token = req.headers.authorization;
 //   if (token) {
-//     const splitToken = token.split(" ")[1];
+//     const splitToken = token.split(" ")[2];
 //     try {
 //       const decoded = verifyToken(splitToken, process.env.JWT_SECRET);
 //       req.user = decoded; // Ajouter les informations de l'utilisateur à la requête
@@ -92,10 +95,18 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 mongoose.connection.on("error", (err) => {
   console.error("❌ Erreur MongoDB:", err);
 });
+
+
+
+// Periodically check for expired notifications (every 10 minutes)
+setInterval(checkExpiredNotifications, 10 * 60 * 1000);
+
 // ✅ Routes
 app.use("/auth", authRoutes);
 app.use("/patient", patientRoutes);
 app.use("/medecin", medecinRoutes);
+app.use("/messages", messagesRoutes);
+app.use('/users', userRoutes);
 app.use("/vitals", vitalsRoutes);
 app.use("/", alertsRoutes);
 app.use("/payments", paymentsRoutes);

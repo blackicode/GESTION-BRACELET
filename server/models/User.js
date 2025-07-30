@@ -50,6 +50,7 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
+  
   userType: {
     type: String,
     required: true,
@@ -78,7 +79,7 @@ const userSchema = new mongoose.Schema({
   braceletId: {
     type: String,
     required: function () { return this.userType === "Patient"; },
-    unique: function () { return this.userType === "Patient"; },
+    // unique: function () { return this.userType === "Patient"; },
   },
   qrCodeData: { type: String },
 
@@ -103,6 +104,12 @@ const userSchema = new mongoose.Schema({
   // Date d'inscription
   registrationDate: { type: Date, default: Date.now },
 }, { timestamps: true });
+
+// ✅ Index unique uniquement si braceletId est défini et non null
+userSchema.index(
+  { braceletId: 1 },
+  { unique: true, partialFilterExpression: { braceletId: { $exists: true, $ne: null } } }
+);
 
 const User = mongoose.model("User", userSchema);
 export default User;

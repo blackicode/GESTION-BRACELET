@@ -27,8 +27,8 @@ const MedecinDashboard = () => {
   if (error) return <div className="p-6 text-center text-red-500">{error}</div>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Bienvenue, Dr. {medecin.firstName} {medecin.lastName}</h1>
+    <div className="p-6 max-w-3xl mt-14 mx-auto">
+      <h1 className="text-2xl font-bold text-center mb-4">Bienvenue, Dr. {medecin.firstName} {medecin.lastName}</h1>
 
       <div className="flex flex-col items-center space-y-4 border p-6 rounded-md shadow-lg bg-white">
         <img

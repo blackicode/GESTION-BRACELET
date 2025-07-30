@@ -381,6 +381,7 @@
 import axios from "axios";
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
+// import bcrypt from "bcryptjs";
 import dotenv from 'dotenv';
 import jwt from "jsonwebtoken";
 import sendMail from "../outil/sendMail.js";
@@ -493,12 +494,33 @@ export const register = async (req, res) => {
       provider, otpMethod // 'sms' ou 'email'
     } = req.body;
 
-    const existingUser = await User.findOne({
-      $or: [{ email }, { phone }, { braceletId }],
-    });
-    if (existingUser) {
-      return res.status(400).json("Email, téléphone ou bracelet déjà utilisé.");
+    // const existingUser = await User.findOne({
+    //   $or: [{ email }, { phone }, { braceletId }],
+    // });
+    // if (existingUser) {
+    //   return res.status(400).json("Email, téléphone ou bracelet déjà utilisé.");
+    // }
+
+    // Recherche de conflits spécifiques
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({ field: "email", message: "Cet email est déjà utilisé." });
     }
+
+    if (phone) {
+      const phoneExists = await User.findOne({ phone });
+      if (phoneExists) {
+        return res.status(400).json({ field: "phone", message: "Ce numéro de téléphone est déjà utilisé." });
+      }
+    }
+
+    if (userType === "Patient" && braceletId) {
+      const braceletExists = await User.findOne({ braceletId });
+      if (braceletExists) {
+        return res.status(400).json({ field: "braceletId", message: "Ce bracelet est déjà attribué à un autre patient." });
+      }
+    }
+
 
     const salt = await bcrypt.genSalt(10);
     const hashPassword = await bcrypt.hash(password, salt);
@@ -613,7 +635,12 @@ export const verifyOtp = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, platform } = req.body;
+
+    if (!["web", "mobile"].includes(platform)) {
+      return res.status(400).json({ message: "Plateforme invalide." });
+    }
+
     const user = await User.findOne({ email });
 
     if (!user) {
@@ -621,7 +648,19 @@ export const login = async (req, res) => {
         message: "Aucun compte trouvé avec cet email. Veuillez vous inscrire.",
       });
     }
-    
+
+    // 🔐 Vérification plateforme vs userType
+    if (user.userType === "Patient" && platform !== "mobile") {
+      return res.status(403).json({
+        message: "Les patients doivent se connecter uniquement via l'application mobile.",
+      });
+    }
+
+    if (["Medecin", "Administrateur"].includes(user.userType) && platform !== "web") {
+      return res.status(403).json({
+        message: "Les médecins et administrateurs doivent se connecter uniquement via l'application web.",
+      });
+    }
 
     // Vérifier si le compte est actuellement bloqué
     if (user.lockUntil && user.lockUntil > Date.now()) {
@@ -673,12 +712,24 @@ export const login = async (req, res) => {
     user.failedAttempts = 0;
     user.lockUntil = null;
     await user.save();
+    // ✅ Génération du token
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        userType: user.userType,
+        // specialite: user.specialite // ← en bonus si tu veux l’éviter plus tard
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
     
+
     return res.status(200).json({
       message: "Connexion réussie.",
       id: user._id, // ✅ requis pour le frontend
       email: user.email,
       userType: user.userType,
+      token,
     });
   } catch (error) {
     console.error("Erreur serveur :", error);
@@ -733,62 +784,62 @@ export const deleteUser = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
   try {
-      const { email } = req.body;
+    const { email } = req.body;
 
-      // Vérifier si l'utilisateur existe
-      const user = await User.findOne({ email });
+    // Vérifier si l'utilisateur existe
+    const user = await User.findOne({ email });
 
-      if (!user) {
-          return res.status(404).json({ message: "Utilisateur introuvable avec cet email" });
-      }
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable avec cet email" });
+    }
 
-      // Générer un token et un code de vérification
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetTokenExpires = Date.now() + 15 * 60 * 1000; // Expiration en 15 min
-      const verifCode = Math.floor(100000 + Math.random() * 900000).toString(); // Code 6 chiffres
-      const verifCodeExpires = Date.now() + 15 * 60 * 1000; // Expiration du code
+    // Générer un token et un code de vérification
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpires = Date.now() + 15 * 60 * 1000; // Expiration en 15 min
+    const verifCode = Math.floor(100000 + Math.random() * 900000).toString(); // Code 6 chiffres
+    const verifCodeExpires = Date.now() + 15 * 60 * 1000; // Expiration du code
 
-      // Stocker dans la base de données
-      user.resetPasswordToken = resetToken;
-      user.resetPasswordExpires = resetTokenExpires;
-      user.verifCode = verifCode;
-      user.verifCodeExpires = verifCodeExpires;
+    // Stocker dans la base de données
+    user.resetPasswordToken = resetToken;
+    user.resetPasswordExpires = resetTokenExpires;
+    user.verifCode = verifCode;
+    user.verifCodeExpires = verifCodeExpires;
 
-      await user.save();
+    await user.save();
 
-      // Configurer l’envoi d’email
-      const transporter = nodemailer.createTransport({
-          host: process.env.HOST,
-          port: Number(process.env.EMAIL_PORT),
-          secure: process.env.SECURE === "true",
-          auth: {
-              user: process.env.EMAIL_USER,
-              pass: process.env.EMAIL_PASS,
-          },
-      });
+    // Configurer l’envoi d’email
+    const transporter = nodemailer.createTransport({
+      host: process.env.HOST,
+      port: Number(process.env.EMAIL_PORT),
+      secure: process.env.SECURE === "true",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
 
-      // Construire le message
-      const resetURL = `${process.env.FRONTEND_URL}/forgotpassword/${resetToken}`;
-      const message = {
-          from: process.env.EMAIL_USER,
-          to: user.email,
-          subject: 'Réinitialisation du mot de passe',
-          html: `
+    // Construire le message
+    const resetURL = `${process.env.FRONTEND_URL}/forgotpassword/${resetToken}`;
+    const message = {
+      from: process.env.EMAIL_USER,
+      to: user.email,
+      subject: 'Réinitialisation du mot de passe',
+      html: `
               <h3>Réinitialisation du mot de passe</h3>
               <p>Cliquez sur le lien suivant pour réinitialiser votre mot de passe :</p>
               <a href="${resetURL}">Réinitialiser le mot de passe</a>
               <p>Ou utilisez ce code de vérification : <strong>${verifCode}</strong></p>
               <p>Ce code est valable pendant 15 minutes.</p>
           `,
-      };
+    };
 
-      await transporter.sendMail(message);
+    await transporter.sendMail(message);
 
-      res.status(200).json({ message: 'Email de réinitialisation envoyé avec succès' });
+    res.status(200).json({ message: 'Email de réinitialisation envoyé avec succès' });
 
   } catch (error) {
-      console.error('Erreur lors de la réinitialisation du mot de passe : ', error);
-      res.status(500).json({ message: "Échec de la réinitialisation du mot de passe" });
+    console.error('Erreur lors de la réinitialisation du mot de passe : ', error);
+    res.status(500).json({ message: "Échec de la réinitialisation du mot de passe" });
   }
 };
 
@@ -797,35 +848,35 @@ export const forgotPassword = async (req, res) => {
 // code de validation de renitilisation
 export const validateCode = async (req, res) => {
   try {
-      const { email, verifCode } = req.body;
+    const { email, verifCode } = req.body;
 
-      // Vérifier si l'utilisateur existe
-      const user = await User.findOne({ email });
+    // Vérifier si l'utilisateur existe
+    const user = await User.findOne({ email });
 
-      if (!user) {
-          return res.status(404).json({ message: "Utilisateur introuvable" });
-      }
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable" });
+    }
 
-      // Vérifier si le code existe et n'a pas expiré
-      if (!user.verifCode || user.verifCodeExpires < Date.now()) {
-          return res.status(400).json({ message: "Code expiré ou non valide. Demandez un nouveau code." });
-      }
+    // Vérifier si le code existe et n'a pas expiré
+    if (!user.verifCode || user.verifCodeExpires < Date.now()) {
+      return res.status(400).json({ message: "Code expiré ou non valide. Demandez un nouveau code." });
+    }
 
-      // Comparer les codes
-      if (user.verifCode !== verifCode) {
-          return res.status(400).json({ message: "Code de vérification incorrect" });
-      }
+    // Comparer les codes
+    if (user.verifCode !== verifCode) {
+      return res.status(400).json({ message: "Code de vérification incorrect" });
+    }
 
-      // Supprimer le code après validation
-      user.verifCode = null;
-      user.verifCodeExpires = null;
-      await user.save();
+    // Supprimer le code après validation
+    user.verifCode = null;
+    user.verifCodeExpires = null;
+    await user.save();
 
-      res.status(200).json({ success: true, message: "Code validé avec succès" });
+    res.status(200).json({ success: true, message: "Code validé avec succès" });
 
   } catch (error) {
-      console.error('Erreur lors de la validation du code : ', error);
-      res.status(500).json({ message: "Erreur lors de la validation du code" });
+    console.error('Erreur lors de la validation du code : ', error);
+    res.status(500).json({ message: "Erreur lors de la validation du code" });
   }
 };
 
@@ -923,11 +974,16 @@ export const Search = async (req, res) => {
 
 // GET /api/auth/me
 export const getMe = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).select('-password');
-    res.json(user);
-  } catch (err) {
-    res.status(500).json("Erreur interne");
+ try {
+    const user = await User.findById(req.user.id)
+
+    .select('firstName lastName photo userType id');
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 

@@ -36,6 +36,13 @@ export default function LoginPage() {
       localStorage.setItem("user", JSON.stringify(data));
       if (data.id) localStorage.setItem("id", data.id);
 
+      // ✅ Sauvegarde du token pour l'authentification
+    if (data.token) {
+      localStorage.setItem("token", data.token);
+    } else {
+      console.warn("Token non présent dans la réponse");
+    }
+
       switch (data.userType) {
         case "Administrateur":
           navigate("/dashboard/admindashboard");
@@ -43,11 +50,7 @@ export default function LoginPage() {
         case "Medecin":
           navigate(`/dashboard/medecindashboard/${data.id}`);
           break;
-        case "Patient":
-          navigate("/dashboard/patientdashboard");
-          break;
-        default:
-          navigate("/dashboard");
+        
       }
     }
   }, [isSuccess, data, navigate]);
@@ -55,7 +58,10 @@ export default function LoginPage() {
   const onSubmit = async (formData) => {
     if (lockTime > 0) return;
     try {
-      await login(formData);
+      // await login(formData);
+
+      await login({ ...formData, platform: "web" });
+
     } catch (err) {
       console.error("Erreur de connexion :", err);
     }

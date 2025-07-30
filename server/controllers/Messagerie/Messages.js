@@ -131,10 +131,26 @@ const messageController = {
 
             const messages = await Message.find({
                 conversationId,
-                $or: [{ sender: userId }, { recipient: userId }]
-            }).sort({ createdAt: 1 });
+                $or: [{ sender: userId }, { recipient: userId }],
+            })
+                .sort({ createdAt: 1 })
+                .populate('sender', 'firstName lastName photo userType')
+                .populate('recipient', 'firstName lastName photo userType');
 
-            res.status(200).json(messages);
+            // Déchiffrement des messages
+            const decryptedMessages = messages.map((msg) => {
+                if (msg.content && msg.iv) {
+                    const key = Buffer.from(keyStore[conversationId], 'hex');
+                    const iv = Buffer.from(msg.iv, 'hex');
+                    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+                    let decryptedContent = decipher.update(msg.content, 'hex', 'utf8');
+                    decryptedContent += decipher.final('utf8');
+                    return { ...msg._doc, content: decryptedContent };
+                }
+                return msg;
+            });
+
+            res.status(200).json(decryptedMessages);
         } catch (error) {
             res.status(500).json({ message: 'Internal error', error: error.message });
         }

@@ -21,6 +21,14 @@ import App from "./components/Alertes/App";
 
 import AdminDashboard from "./components/slidebar/PageAccueil/AdminDashboard";
 import MedecinDashboard from "./components/slidebar/PageAccueil/MedecinDashboard";
+import MedecinProfile from "./components/Medecins/MedecinProfile";
+import MesPatients from "./components/Patients/MesPatients";
+import PatientProfile from "./components/Patients/PatientProfile";
+import Messagerie from "./components/Messagerie/Messagerie";
+import NotificationList from "./components/Notifications/NotificationCkecker";
+import NotificationChecker from "./components/Notifications/NotificationCkecker";
+import MedecinNotifications from "./components/Medecins/MedecinNotificaiton";
+import PatientDashboard from "./components/Patients/PatientNotification";
 
 
 export const router = createBrowserRouter([
@@ -50,7 +58,7 @@ export const router = createBrowserRouter([
     element: <ValidationPage />,
 
   },
-  
+
 
   {
     path: "/dashboard",
@@ -65,8 +73,39 @@ export const router = createBrowserRouter([
         element: <AdminDashboard />,
       },
       {
+        path: "messagerie",
+        element: <Messagerie />,
+      },
+      {
+        path: "notifications",
+        element: <NotificationChecker />,
+      },
+      {
+        path: "medecinnotifications",
+        element: <MedecinNotifications />,
+      },
+      {
+        path: "patientnotifications",
+        element: <PatientDashboard />,
+      },
+
+
+      {
+        path: "mespatients",
+        element: <MesPatients />,
+      },
+      {
+        path: "patientprofile/:id",
+        element: <PatientProfile />,
+      },
+      {
         path: "medecindashboard/:id",
         element: <MedecinDashboard />,
+      },
+
+      {
+        path: "medecinprofile/:id",
+        element: <MedecinProfile />,
       },
       {
         path: "Profile",
@@ -76,20 +115,20 @@ export const router = createBrowserRouter([
         path: "alertes",
         element: <App />,
       },
-      
+
       {
         path: "nombreconect",
         element: <Nombresconecter />,
       },
 
-      
+
       {
         path: "docs",
         element: <DocumentationPage />,
       },
-      
+
       {
-        path: "Logout",
+        path: "logout",
         element: <LogOut />,
 
       },

@@ -29,6 +29,7 @@ router.post('/login', login);
 router.get('/count',countUsers);
 router.post('/forgotpassword', forgotPassword);
 router.post('/validatecode', validateCode);
+
 router.get('/me', verifyToken, getMe); // infos utilisateur connecté
 
 

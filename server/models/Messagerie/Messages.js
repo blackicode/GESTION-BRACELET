@@ -41,13 +41,3 @@ const messageSchema = new mongoose.Schema({
 
 const Message = mongoose.model('Message', messageSchema);
 export default Message;
-
-// Note: This schema defines a Message model for a messaging system, including fields for sender and recipient references, content, optional attachments, encryption details, read status, and conversation identification.     
-// The schema uses Mongoose's ObjectId type for references to the User model, ensuring that messages are linked to valid users. The content field is conditionally required based on the presence of an attachment, allowing for flexibility in message types. The timestamps option automatically adds createdAt and updatedAt fields to the documents.
-// The schema also includes an initialization vector (iv) for encryption purposes, enhancing the security of the messages. The isRead field tracks whether a message has been read, and the conversationId field associates messages with specific conversations, facilitating organized communication.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
-// The model is exported for use in other parts of the application, allowing for message creation, retrieval, and management within the messaging system.
