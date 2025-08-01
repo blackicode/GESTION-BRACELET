@@ -178,7 +178,7 @@ export default function BarreMenu() {
           <MenuItem to="/dashboard" icon={icons.faBars} title="Accueil" activeLink={activeLink} setActiveLink={setActiveLink} />
           <MenuItem to="/dashboard/mespatients" icon={icons.faFan} title="Voir Mes Patients" activeLink={activeLink} setActiveLink={setActiveLink} />
           <MenuItem to="/dashboard/messagerie" icon={icons.faEnvelope} title="Messagerie" badgeCount={1} activeLink={activeLink} setActiveLink={setActiveLink} />
-          <MenuItem to="/dashboard/notification" icon={icons.faBell} title="Notifications" badgeCount={3} activeLink={activeLink} setActiveLink={setActiveLink} />
+          <MenuItem to="/dashboard/notifications" icon={icons.faBell} title="Notifications" badgeCount={3} activeLink={activeLink} setActiveLink={setActiveLink} />
         </div>
 
         {/* Menu utilisateur */}
